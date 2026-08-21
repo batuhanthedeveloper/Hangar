@@ -1,0 +1,19 @@
+Incident Identifier: 11111111-2222-3333-4444-555555555555
+Hardware Model:      iPhone17,4
+Process:             ExampleApp [100]
+Version:             1.0 (7)
+OS Version:          iPhone OS 26.6 (23A000)
+
+Exception Type:  EXC_CRASH (SIGABRT)
+Termination Reason: NAMESPACE SIGNAL, Code 6
+
+Triggered by Thread:  3
+
+Thread 3 Crashed:
+0   libsystem_kernel.dylib        	0x00000001db6d5ce4 __pthread_kill + 8 (:-1)
+1   libsystem_pthread.dylib       	0x0000000214d07344 pthread_kill + 268 (pthread.c:931)
+2   libsystem_c.dylib             	0x000000018a1f4a30 abort + 124 (abort.c:122)
+3   CoreFoundation                	0x000000018a87badc __CFRunLoopRun + 572 (CFRunLoop.c:3434)
+
+Binary Images:
+       0x100918000 -        0x100cdbfff ExampleApp arm64  <3224966c> /ExampleApp

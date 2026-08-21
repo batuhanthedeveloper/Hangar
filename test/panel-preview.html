@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hangar panel preview</title>
+    <style>
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        background: #6b6b73;
+        font-family: -apple-system, sans-serif;
+        place-items: center;
+      }
+
+      .frame {
+        overflow: hidden;
+        width: 400px;
+        height: 820px;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <iframe id="panel" src="./panel-frame.html"></iframe>
+    </div>
+    <script>
+      // Query string is passed straight through to the panel frame
+      // (?kind=crash, ?demo=1).
+      const query = location.search;
+
+      if (query) {
+        document.getElementById('panel').src = `./panel-frame.html${query}`;
+      }
+    </script>
+  </body>
+</html>

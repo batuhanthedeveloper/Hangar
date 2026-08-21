@@ -1,0 +1,32 @@
+.hangar-launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483000;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 18px;
+  background: #1d1d1f;
+  color: #fff;
+  font: 600 13px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 22%);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.hangar-launcher:hover {
+  transform: translateY(-1px);
+  background: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hangar-launcher {
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+
+  .hangar-launcher:hover {
+    background: #fff;
+  }
+}

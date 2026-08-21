@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img" aria-label="Selected TestFlight feedback becomes a task pack in your repository">
+  <rect x="1" y="52" width="360" height="200" rx="10" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+  <text x="21" y="40" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#656c76" text-anchor="start">App Store Connect</text>
+  <rect x="21" y="72" width="16" height="16" rx="4" fill="#4493f8"/>
+  <path d="M25 79.5 l3 3 l5.5 -6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="49" y="85" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">Bottom tab bar disappears</text>
+  <rect x="21" y="112" width="16" height="16" rx="4" fill="#4493f8"/>
+  <path d="M25 119.5 l3 3 l5.5 -6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="49" y="125" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">Can't like a comment</text>
+  <rect x="21" y="152" width="16" height="16" rx="4" fill="#4493f8"/>
+  <path d="M25 159.5 l3 3 l5.5 -6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="49" y="165" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">Photo is cropped when shared</text>
+  <rect x="21" y="192" width="16" height="16" rx="4" fill="#4493f8"/>
+  <path d="M25 199.5 l3 3 l5.5 -6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="49" y="205" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#e6edf3" text-anchor="start">Crash on notification tap</text>
+  <path d="M382 152 H502" stroke="#3d444d" stroke-width="2" stroke-linecap="round"/>
+  <path d="M494 145 l8 7 l-8 7" fill="none" stroke="#3d444d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="442" y="138" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#4493f8" text-anchor="middle">Hangar</text>
+  <text x="442" y="182" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#656c76" text-anchor="middle">select · export</text>
+  <rect x="539" y="52" width="360" height="200" rx="10" fill="#151b23" stroke="#3d444d" stroke-width="1"/>
+  <text x="559" y="40" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#656c76" text-anchor="start">Your repository</text>
+  <text x="559" y="84" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#9198a1" text-anchor="start">testflight/TASKS.md</text>
+  <text x="575" y="114" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#656c76" text-anchor="start">tasks/TF-ALc8ZZJ8FS.md</text>
+  <text x="575" y="144" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#656c76" text-anchor="start">screenshots/TF-ALc8ZZJ8FS.jpg</text>
+  <text x="575" y="174" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#656c76" text-anchor="start">crashes/TF-AAjYVBLoUC.crash</text>
+  <text x="559" y="204" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" font-weight="400" fill="#9198a1" text-anchor="start">.claude/commands/hangar.md</text>
+  <text x="450" y="286" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="middle">tester's words · screenshot · crash log · device conditions</text>
+</svg>

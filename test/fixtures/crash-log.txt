@@ -1,0 +1,62 @@
+Incident Identifier: E6811843-AC2A-42D8-BBA6-ACE68CCBBB0C
+Distributor ID:      com.apple.TestFlight
+Hardware Model:      iPhone12,1
+Process:             ExampleApp [45930]
+Path:                /private/var/containers/Bundle/Application/090F8214/ExampleApp.app/ExampleApp
+Identifier:          org.example.app
+Version:             1.0 (7)
+AppStoreTools:       17F106
+AppVariant:          1:iPhone12,1:18
+Beta:                YES
+Code Type:           ARM-64 (Native)
+Role:                Foreground
+Parent Process:      launchd [1]
+
+Date/Time:           2026-08-15 18:05:35.8817 +0300
+Launch Time:         2026-08-15 18:04:41.1448 +0300
+OS Version:          iPhone OS 18.6.2 (22G100)
+Release Type:        User
+Report Version:      104
+
+Exception Type:  EXC_BREAKPOINT (SIGTRAP)
+Exception Codes: 0x0000000000000001, 0x0000000100b7c5c4
+Termination Reason: SIGNAL 5 Trace/BPT trap: 5
+Terminating Process: exc handler [45930]
+
+Triggered by Thread:  0
+
+
+Thread 0 name:
+Thread 0 Crashed:
+0   ExampleApp                    	0x0000000100b7c5c4 Swift runtime failure: Array index is out of range + 0 (/<compiler-generated>:0)
+1   ExampleApp                    	0x0000000100b7c5c4 specialized Array._checkIndex(_:) + 0 (/<compiler-generated>:0)
+2   ExampleApp                    	0x0000000100b7c5c4 specialized Array.subscript.getter + 0 (TokenTextView.swift:226)
+3   ExampleApp                    	0x0000000100b7c5c4 specialized TagToken.replacing(in:with:) + 632
+4   ExampleApp                    	0x0000000100adc05c TagToken.replacing(in:with:) + 28 (/<compiler-generated>:0)
+5   ExampleApp                    	0x0000000100adc05c closure #1 in DetailView.commentBar.getter + 232 (DetailView.swift:337)
+6   SwiftUI                       	0x000000018fa5d0c0 <deduplicated_symbol> + 32
+7   SwiftUI                       	0x000000018ffe3a10 ButtonAction.callAsFunction() + 380 (Button.swift:607)
+8   UIKitCore                     	0x000000018d1c7508 -[UIApplication sendEvent:] + 376 (UIApplication.m:13025)
+9   CoreFoundation                	0x000000018a87badc CFRunLoopRunSpecific + 572 (CFRunLoop.c:3434)
+10  ExampleApp                    	0x0000000100955964 static ExampleApp.$main() + 52 (ExampleApp.swift:0)
+11  dyld                          	0x00000001b130df08 start + 6040 (dyldMain.cpp:1450)
+
+Thread 1:
+0   libsystem_pthread.dylib       	0x0000000214d04aa4 start_wqthread + 0 (:-1)
+
+Thread 2 name:
+Thread 2:
+0   libsystem_kernel.dylib        	0x00000001db6d5ce4 mach_msg2_trap + 8 (:-1)
+1   CoreFoundation                	0x000000018a87badc CFRunLoopRunSpecific + 572 (CFRunLoop.c:3434)
+
+
+Thread 0 crashed with ARM Thread State (64-bit):
+    x0: 0x0000000000000000   x1: 0x0000000000000000
+    sp: 0x000000016f4e3ec0   pc: 0x0000000100b7c5c4 cpsr: 0x80000000
+
+
+Binary Images:
+       0x100918000 -        0x100cdbfff ExampleApp arm64  <3224966c> /var/containers/Bundle/Application/090F8214/ExampleApp.app/ExampleApp
+       0x18f0ab000 -        0x19032e7bf SwiftUI arm64e  <43149985> /System/Library/Frameworks/SwiftUI.framework/SwiftUI
+
+EOF

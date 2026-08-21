@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hangar</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <!-- Icon definitions, referenced by <use> so each glyph is defined once. -->
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-reload" viewBox="0 0 16 16">
+        <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13 2v3h-3" />
+      </symbol>
+      <!--
+        Sliders rather than a gear: at the 16px this is actually drawn at, a
+        cog's teeth merge into an unreadable blob, and a ring with detached
+        spokes reads as a sun.
+      -->
+      <symbol id="i-settings" viewBox="0 0 16 16">
+        <path d="M2 5h5M11 5h3M2 11h2M8 11h6" />
+        <circle cx="9" cy="5" r="1.7" />
+        <circle cx="6" cy="11" r="1.7" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 16 16">
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="M10.5 10.5 14 14" />
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 16 16">
+        <path d="m4 4 8 8M12 4l-8 8" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 16 16">
+        <path d="m3.5 8.5 3 3 6-7" />
+      </symbol>
+      <symbol id="i-expand" viewBox="0 0 16 16">
+        <path d="M6 2H2v4M10 14h4v-4M14 6V2h-4M2 10v4h4" />
+      </symbol>
+      <symbol id="i-arrow-left" viewBox="0 0 16 16">
+        <path d="M10 3 5 8l5 5" />
+      </symbol>
+      <symbol id="i-arrow-right" viewBox="0 0 16 16">
+        <path d="m6 3 5 5-5 5" />
+      </symbol>
+      <symbol id="i-folder" viewBox="0 0 16 16">
+        <path d="M1.5 4.5h4l1.4 1.6h7.6v7a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" />
+      </symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24">
+        <path d="M3 13h4l1.5 3h7L17 13h4M3 13l2.5-8h13L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.5v5M12 16.2v.3" />
+      </symbol>
+    </svg>
+
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <h1>Hangar</h1>
+          <p id="context" class="context">Checking this tab…</p>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="refresh" class="icon-btn" type="button" title="Reload feedback">
+            <svg class="icon"><use href="#i-reload" /></svg>
+          </button>
+          <button id="open-settings" class="icon-btn" type="button" title="Export settings">
+            <svg class="icon"><use href="#i-settings" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="toolbar" class="toolbar" hidden>
+        <div class="search-field">
+          <svg class="icon search-icon"><use href="#i-search" /></svg>
+          <input
+            id="search"
+            type="search"
+            placeholder="Filter by text, device or build"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="search-clear" class="search-clear" type="button" hidden title="Clear">
+            <svg class="icon"><use href="#i-close" /></svg>
+          </button>
+        </div>
+
+        <div id="filters" class="chips" role="tablist">
+          <button class="chip is-active" type="button" data-filter="all" role="tab">
+            All <span class="chip-count" data-count="all">0</span>
+          </button>
+          <button class="chip" type="button" data-filter="new" role="tab">
+            New <span class="chip-count" data-count="new">0</span>
+          </button>
+          <button class="chip" type="button" data-filter="flagged" role="tab">
+            Flagged <span class="chip-count" data-count="flagged">0</span>
+          </button>
+        </div>
+      </div>
+
+      <main class="content">
+        <div id="loading" class="centered" hidden>
+          <div class="spinner"></div>
+          <p class="centered-title">Loading feedback</p>
+          <p id="loading-sub" class="centered-sub">Asking App Store Connect…</p>
+        </div>
+
+        <div id="state" class="centered" hidden>
+          <div class="state-icon"><svg class="icon"><use id="state-glyph" href="#i-inbox" /></svg></div>
+          <p id="state-title" class="centered-title"></p>
+          <p id="state-sub" class="centered-sub"></p>
+          <button id="state-action" class="btn btn-secondary" type="button" hidden></button>
+        </div>
+
+        <ul id="list" class="list" hidden></ul>
+      </main>
+
+      <footer id="footer" class="footer" hidden>
+        <div class="footer-summary">
+          <span id="selected-count" class="selected-count">Nothing selected</span>
+          <button id="clear" class="link-btn" type="button" hidden>Clear</button>
+        </div>
+
+        <div class="footer-actions">
+          <button id="select-all" class="btn btn-secondary" type="button">Select all</button>
+          <button id="export" class="btn btn-primary" type="button" disabled>Export</button>
+        </div>
+
+        <p id="destination" class="destination"></p>
+      </footer>
+    </div>
+
+    <!-- Screenshot preview -->
+    <div id="preview" class="overlay" hidden>
+      <div class="preview-bar">
+        <button id="preview-prev" class="icon-btn on-dark" type="button" title="Previous">
+          <svg class="icon"><use href="#i-arrow-left" /></svg>
+        </button>
+        <span id="preview-position" class="preview-position"></span>
+        <button id="preview-next" class="icon-btn on-dark" type="button" title="Next">
+          <svg class="icon"><use href="#i-arrow-right" /></svg>
+        </button>
+        <button id="preview-close" class="icon-btn on-dark preview-close" type="button" title="Close">
+          <svg class="icon"><use href="#i-close" /></svg>
+        </button>
+      </div>
+
+      <div class="preview-stage">
+        <img id="preview-image" alt="" />
+      </div>
+
+      <div class="preview-info">
+        <p id="preview-comment"></p>
+        <div id="preview-meta" class="card-meta"></div>
+        <button id="preview-toggle" class="btn btn-secondary" type="button"></button>
+      </div>
+    </div>
+
+    <!-- Export settings -->
+    <div id="settings" class="sheet" hidden>
+      <div class="sheet-head">
+        <h2>Export settings</h2>
+        <button id="settings-close" class="icon-btn" type="button" title="Close">
+          <svg class="icon"><use href="#i-close" /></svg>
+        </button>
+      </div>
+
+      <div class="sheet-body">
+        <section class="group">
+          <h3>Destination</h3>
+          <button id="choose-folder" class="folder-button" type="button">
+            <svg class="icon"><use href="#i-folder" /></svg>
+            <span>
+              <strong id="folder-name">Downloads a ZIP file</strong>
+              <small id="folder-hint">Choose a repository folder to write into it directly</small>
+            </span>
+          </button>
+          <button id="forget-folder" class="link-btn" type="button" hidden>
+            Forget this folder
+          </button>
+        </section>
+
+        <section class="group">
+          <h3>Privacy</h3>
+          <label class="switch-row">
+            <span>
+              <strong>Include tester name and email</strong>
+              <small>
+                Off by default. When on, personal data is written into your
+                repository and reaches whichever agent reads it.
+              </small>
+            </span>
+            <input id="include-tester" type="checkbox" class="switch" />
+          </label>
+        </section>
+
+        <section class="group">
+          <h3>Screenshots</h3>
+          <label class="select-row">
+            <span>
+              <strong>Size</strong>
+              <small>Larger images let an agent read on-screen text.</small>
+            </span>
+            <select id="screenshot-size">
+              <option value="original">Original</option>
+              <option value="fits1024">Fits 1024</option>
+              <option value="fits512">Fits 512</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="group">
+          <h3>Agent files</h3>
+          <label class="switch-row">
+            <span>
+              <strong>Claude Code</strong>
+              <small>CLAUDE.md plus a <code>/hangar</code> slash command</small>
+            </span>
+            <input id="preset-claude" type="checkbox" class="switch" />
+          </label>
+          <label class="switch-row">
+            <span>
+              <strong>AGENTS.md</strong>
+              <small>Codex, Cursor and Copilot read this convention</small>
+            </span>
+            <input id="preset-agents" type="checkbox" class="switch" />
+          </label>
+        </section>
+      </div>
+    </div>
+
+    <!-- Export progress -->
+    <div id="export-overlay" class="overlay export-overlay" hidden>
+      <svg class="ring" viewBox="0 0 48 48">
+        <circle class="ring-track" cx="24" cy="24" r="21" />
+        <circle id="ring-fill" class="ring-fill" cx="24" cy="24" r="21" />
+      </svg>
+      <p id="export-step" class="centered-title">Preparing…</p>
+      <p id="export-detail" class="centered-sub"></p>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

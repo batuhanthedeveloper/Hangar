@@ -1,0 +1,164 @@
+{
+  "_note": "Trimmed capture of a real iris response. Tester names and emails are replaced with placeholders; every other value is verbatim so the parser is exercised against real shapes.",
+  "data": [
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ANdxloTdD3QaBqG-bf-KvOo",
+      "attributes": {
+        "screenWidthInPoints": 430,
+        "screenHeightInPoints": 932,
+        "buildBundleId": "org.example.app",
+        "locale": "en-TR",
+        "connectionType": "WIFI",
+        "osVersion": "26.6",
+        "email": "tester.one@example.com",
+        "architecture": "arm64e",
+        "appPlatform": "IOS",
+        "timeZone": "Europe/Istanbul",
+        "devicePlatform": "IOS",
+        "deviceFamily": "IPHONE",
+        "diskBytesTotal": 115464826880,
+        "diskBytesAvailable": 604131328,
+        "sizedScreenshots": [
+          {
+            "original": { "url": "https://tf-feedback.itunes.apple.com/eimg/a/original.jpg?sig=1", "width": 1290, "height": 2796, "expirationDate": "2026-08-26T00:00:00Z" },
+            "fits1024": { "url": "https://tf-feedback.itunes.apple.com/eimg/a/fits1024x1024.jpg?sig=1", "width": 472, "height": 1024, "expirationDate": "2026-08-26T00:00:00Z" },
+            "fits512": { "url": "https://tf-feedback.itunes.apple.com/eimg/a/fits512x512.jpg?sig=1", "width": 236, "height": 512, "expirationDate": "2026-08-26T00:00:00Z" },
+            "fits256": { "url": "https://tf-feedback.itunes.apple.com/eimg/a/fits256x256.jpg?sig=1", "width": 118, "height": 256, "expirationDate": "2026-08-26T00:00:00Z" }
+          }
+        ],
+        "carrier": "Plus",
+        "createdDate": "2026-08-15T15:27:50.949Z",
+        "comment": "Fotoğrafı seçtikten sonra önizleme kırpılmış görünüyor ve öyle paylaşılıyor",
+        "deviceModel": "iPhone17_4",
+        "batteryPercentage": 25,
+        "appUptimeInMilliseconds": 95000
+      },
+      "relationships": {
+        "tester": { "data": { "type": "betaTesters", "id": "aaaa0001-0000-4000-8000-000000000001" } },
+        "build": { "data": { "type": "builds", "id": "eeee0005-0000-4000-8000-000000000005" } }
+      }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ALc8ZZJ8FS42ipp97q3uFJo",
+      "attributes": {
+        "screenWidthInPoints": 430,
+        "screenHeightInPoints": 932,
+        "buildBundleId": "org.example.app",
+        "locale": "en-TR",
+        "connectionType": "WIFI",
+        "osVersion": "26.6",
+        "email": "tester.one@example.com",
+        "deviceFamily": "IPHONE",
+        "devicePlatform": "IOS",
+        "timeZone": "Europe/Istanbul",
+        "diskBytesTotal": 115464826880,
+        "diskBytesAvailable": 618188800,
+        "sizedScreenshots": [
+          {
+            "original": { "url": "https://tf-feedback.itunes.apple.com/eimg/b/original.jpg?sig=2", "width": 1290, "height": 2796, "expirationDate": "2026-08-26T00:00:00Z" },
+            "fits256": { "url": "https://tf-feedback.itunes.apple.com/eimg/b/fits256x256.jpg?sig=2", "width": 118, "height": 256, "expirationDate": "2026-08-26T00:00:00Z" }
+          }
+        ],
+        "carrier": "Plus",
+        "createdDate": "2026-08-15T15:25:57.943Z",
+        "comment": "Mesajlar ekranından çıkınca alttaki sekme çubuğu kayboluyor, profilime girip çıkmak da düzeltmiyor, uygulamayı tamamen kapatıp açmam gerekiyor",
+        "deviceModel": "iPhone17_4",
+        "batteryPercentage": 25,
+        "appUptimeInMilliseconds": 3352000
+      },
+      "relationships": {
+        "tester": { "data": { "type": "betaTesters", "id": "aaaa0001-0000-4000-8000-000000000001" } },
+        "build": { "data": { "type": "builds", "id": "eeee0005-0000-4000-8000-000000000005" } }
+      }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "AFRw5KjSZOyK_hRThgcR17g",
+      "attributes": {
+        "screenWidthInPoints": 440,
+        "screenHeightInPoints": 956,
+        "buildBundleId": "org.example.app",
+        "locale": "tr-TR",
+        "connectionType": "WIFI",
+        "osVersion": "26.6",
+        "email": "tester.two@example.com",
+        "deviceFamily": "IPHONE",
+        "devicePlatform": "IOS",
+        "timeZone": "Europe/Istanbul",
+        "diskBytesTotal": 255386537984,
+        "diskBytesAvailable": 124369096704,
+        "sizedScreenshots": [
+          {
+            "original": { "url": "https://tf-feedback.itunes.apple.com/eimg/c/original.jpg?sig=3", "width": 1320, "height": 1480, "expirationDate": "2026-08-26T00:00:00Z" },
+            "fits256": { "url": "https://tf-feedback.itunes.apple.com/eimg/c/fits256x256.jpg?sig=3", "width": 228, "height": 256, "expirationDate": "2026-08-26T00:00:00Z" }
+          }
+        ],
+        "carrier": null,
+        "createdDate": "2026-08-15T15:07:59.256Z",
+        "comment": "mesaj balonlarında çizgi görünüyor",
+        "deviceModel": "iPhone18_2",
+        "batteryPercentage": 35,
+        "appUptimeInMilliseconds": 89000
+      },
+      "relationships": {
+        "tester": { "data": { "type": "betaTesters", "id": "cccc0003-0000-4000-8000-000000000003" } },
+        "build": { "data": { "type": "builds", "id": "ffff0006-0000-4000-8000-000000000006" } }
+      }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "AZZZfutureHardware00001",
+      "attributes": {
+        "screenWidthInPoints": 402,
+        "screenHeightInPoints": 874,
+        "buildBundleId": "org.example.app",
+        "locale": "en-US",
+        "connectionType": "CELLULAR",
+        "osVersion": "27.0",
+        "deviceFamily": "IPHONE",
+        "devicePlatform": "IOS",
+        "diskBytesTotal": 128000000000,
+        "diskBytesAvailable": 64000000000,
+        "sizedScreenshots": [],
+        "screenshots": [],
+        "carrier": "Example Mobile",
+        "createdDate": "2026-08-20T09:00:00Z",
+        "comment": "",
+        "deviceModel": "iPhone99_1",
+        "batteryPercentage": 88,
+        "appUptimeInMilliseconds": 12000
+      },
+      "relationships": {
+        "build": { "data": { "type": "builds", "id": "eeee0005-0000-4000-8000-000000000005" } }
+      }
+    }
+  ],
+  "included": [
+    {
+      "type": "betaTesters",
+      "id": "aaaa0001-0000-4000-8000-000000000001",
+      "attributes": { "firstName": "Tester", "lastName": "One", "email": "tester.one@example.com" }
+    },
+    {
+      "type": "betaTesters",
+      "id": "cccc0003-0000-4000-8000-000000000003",
+      "attributes": { "firstName": "Tester", "lastName": "Two", "email": "tester.two@example.com" }
+    },
+    {
+      "type": "builds",
+      "id": "eeee0005-0000-4000-8000-000000000005",
+      "attributes": { "version": "7" },
+      "relationships": { "preReleaseVersion": { "data": { "type": "preReleaseVersions", "id": "pre-1" } } }
+    },
+    {
+      "type": "builds",
+      "id": "ffff0006-0000-4000-8000-000000000006",
+      "attributes": { "version": "6" },
+      "relationships": { "preReleaseVersion": { "data": { "type": "preReleaseVersions", "id": "pre-1" } } }
+    },
+    { "type": "preReleaseVersions", "id": "pre-1", "attributes": { "version": "1.0" } }
+  ],
+  "meta": { "paging": { "total": 4, "limit": 200 } }
+}

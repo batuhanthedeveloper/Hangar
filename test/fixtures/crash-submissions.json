@@ -1,0 +1,104 @@
+{
+  "_note": "Trimmed capture of a real iris crash response. Tester names and emails are replaced with placeholders; every other value is verbatim. Note that crashLog is a relationship link, not an attribute, and that screenshots are absent entirely.",
+  "data": [
+    {
+      "type": "betaFeedbackCrashSubmissions",
+      "id": "AAjYVBLoUC_RKhMmIoqgrEc",
+      "attributes": {
+        "screenWidthInPoints": 414,
+        "screenHeightInPoints": 896,
+        "buildBundleId": "org.example.app",
+        "crashPointId": "CfDE6UO7xBkALN6mjzvhLX",
+        "locale": "en-TR",
+        "connectionType": "WIFI",
+        "osVersion": "18.6.2",
+        "email": "tester.three@example.com",
+        "architecture": "arm64e",
+        "appPlatform": "IOS",
+        "timeZone": "Europe/Istanbul",
+        "devicePlatform": "IOS",
+        "deviceFamily": "IPHONE",
+        "diskBytesTotal": 63933894656,
+        "diskBytesAvailable": 384868352,
+        "carrier": "Plus",
+        "createdDate": "2026-08-15T15:06:16.951Z",
+        "comment": null,
+        "deviceModel": "iPhone12_1",
+        "batteryPercentage": 60,
+        "appUptimeInMilliseconds": 20000,
+        "incidentId": "E6811843-AC2A-42D8-BBA6-ACE68CCBBB0C"
+      },
+      "relationships": {
+        "crashLog": {
+          "links": {
+            "related": "https://appstoreconnect.apple.com/iris/v1/betaFeedbackCrashSubmissions/AAjYVBLoUC_RKhMmIoqgrEc/crashLog"
+          }
+        },
+        "tester": { "data": { "type": "betaTesters", "id": "dddd0004-0000-4000-8000-000000000004" } },
+        "build": { "data": { "type": "builds", "id": "eeee0005-0000-4000-8000-000000000005" } }
+      }
+    },
+    {
+      "type": "betaFeedbackCrashSubmissions",
+      "id": "AH1HnoXGsLvRvSY7zJT6_qw",
+      "attributes": {
+        "screenWidthInPoints": 440,
+        "screenHeightInPoints": 956,
+        "buildBundleId": "org.example.app",
+        "crashPointId": "CfDE6UO7xBkALN6mjzvhLX",
+        "locale": "tr-TR",
+        "connectionType": "WIFI",
+        "osVersion": "26.6",
+        "email": "tester.two@example.com",
+        "architecture": "arm64e",
+        "appPlatform": "IOS",
+        "timeZone": "Europe/Istanbul",
+        "devicePlatform": "IOS",
+        "deviceFamily": "IPHONE",
+        "diskBytesTotal": 255386537984,
+        "diskBytesAvailable": 124355448832,
+        "carrier": null,
+        "createdDate": "2026-08-15T15:06:09.757Z",
+        "comment": "bildirime dokunduğumda uygulama kapandı",
+        "deviceModel": "iPhone18_2",
+        "batteryPercentage": 35,
+        "appUptimeInMilliseconds": null,
+        "incidentId": "A5197852-92FC-4B64-83F7-4B802B8D6B37"
+      },
+      "relationships": {
+        "crashLog": {
+          "links": {
+            "related": "https://appstoreconnect.apple.com/iris/v1/betaFeedbackCrashSubmissions/AH1HnoXGsLvRvSY7zJT6_qw/crashLog"
+          }
+        },
+        "tester": { "data": { "type": "betaTesters", "id": "cccc0003-0000-4000-8000-000000000003" } },
+        "build": { "data": { "type": "builds", "id": "ffff0006-0000-4000-8000-000000000006" } }
+      }
+    }
+  ],
+  "included": [
+    {
+      "type": "betaTesters",
+      "id": "dddd0004-0000-4000-8000-000000000004",
+      "attributes": { "firstName": "Tester", "lastName": "Three", "email": "tester.three@example.com" }
+    },
+    {
+      "type": "betaTesters",
+      "id": "cccc0003-0000-4000-8000-000000000003",
+      "attributes": { "firstName": "Tester", "lastName": "Two", "email": "tester.two@example.com" }
+    },
+    {
+      "type": "builds",
+      "id": "eeee0005-0000-4000-8000-000000000005",
+      "attributes": { "version": "7" },
+      "relationships": { "preReleaseVersion": { "links": { "related": "https://appstoreconnect.apple.com/iris/v1/builds/eeee0005-0000-4000-8000-000000000005/preReleaseVersion" } } }
+    },
+    {
+      "type": "builds",
+      "id": "ffff0006-0000-4000-8000-000000000006",
+      "attributes": { "version": "6" },
+      "relationships": { "preReleaseVersion": { "links": { "related": "https://appstoreconnect.apple.com/iris/v1/builds/ffff0006-0000-4000-8000-000000000006/preReleaseVersion" } } }
+    }
+  ],
+  "meta": { "paging": { "total": 2, "limit": 100 } }
+}

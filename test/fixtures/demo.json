@@ -1,0 +1,98 @@
+{
+  "_note": "Invented feedback for screenshots and store listings. Not a test fixture and not anyone's real data — the wording matches the README diagram so the two read as one story.",
+  "data": [
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ADemo0000000000000000001",
+      "attributes": {
+        "screenWidthInPoints": 430, "screenHeightInPoints": 932,
+        "buildBundleId": "com.example.app", "locale": "en-GB", "connectionType": "WIFI",
+        "osVersion": "26.6", "deviceFamily": "IPHONE", "devicePlatform": "IOS",
+        "timeZone": "Europe/London", "carrier": "Example Mobile",
+        "diskBytesTotal": 128000000000, "diskBytesAvailable": 604131328,
+        "createdDate": "2026-08-19T14:02:11.000Z",
+        "comment": "Bottom tab bar disappears after I leave Messages. Going to my profile and back doesn't fix it — I have to force quit the app.",
+        "deviceModel": "iPhone17_4", "batteryPercentage": 24,
+        "appUptimeInMilliseconds": 3352000,
+        "sizedScreenshots": [{ "original": { "url": "shot-1", "width": 1290, "height": 2796 }, "fits1024": { "url": "shot-1", "width": 472, "height": 1024 }, "fits256": { "url": "shot-1", "width": 118, "height": 256 } }]
+      },
+      "relationships": { "tester": { "data": { "type": "betaTesters", "id": "demo-0001-0000-4000-8000-000000000001" } }, "build": { "data": { "type": "builds", "id": "demo-b007-0000-4000-8000-000000000007" } } }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ADemo0000000000000000002",
+      "attributes": {
+        "screenWidthInPoints": 440, "screenHeightInPoints": 956,
+        "buildBundleId": "com.example.app", "locale": "en-US", "connectionType": "WIFI",
+        "osVersion": "26.6", "deviceFamily": "IPHONE", "devicePlatform": "IOS",
+        "timeZone": "America/New_York", "carrier": null,
+        "diskBytesTotal": 256000000000, "diskBytesAvailable": 84000000000,
+        "createdDate": "2026-08-19T11:48:03.000Z",
+        "comment": "I can't like a comment. Tapping the heart opens the post instead.",
+        "deviceModel": "iPhone18_2", "batteryPercentage": 71,
+        "appUptimeInMilliseconds": 420000,
+        "sizedScreenshots": [{ "original": { "url": "shot-2", "width": 1320, "height": 2868 }, "fits1024": { "url": "shot-2", "width": 471, "height": 1024 }, "fits256": { "url": "shot-2", "width": 118, "height": 256 } }]
+      },
+      "relationships": { "tester": { "data": { "type": "betaTesters", "id": "demo-0002-0000-4000-8000-000000000002" } }, "build": { "data": { "type": "builds", "id": "demo-b007-0000-4000-8000-000000000007" } } }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ADemo0000000000000000003",
+      "attributes": {
+        "screenWidthInPoints": 430, "screenHeightInPoints": 932,
+        "buildBundleId": "com.example.app", "locale": "en-GB", "connectionType": "CELLULAR",
+        "osVersion": "26.5", "deviceFamily": "IPHONE", "devicePlatform": "IOS",
+        "timeZone": "Europe/Dublin", "carrier": "Example Mobile",
+        "diskBytesTotal": 128000000000, "diskBytesAvailable": 511705088,
+        "createdDate": "2026-08-18T20:15:44.000Z",
+        "comment": "Photo gets cropped when I share it, even after I pick the right size in the picker.",
+        "deviceModel": "iPhone17_3", "batteryPercentage": 12,
+        "appUptimeInMilliseconds": 95000,
+        "sizedScreenshots": [{ "original": { "url": "shot-3", "width": 1290, "height": 2796 }, "fits1024": { "url": "shot-3", "width": 472, "height": 1024 }, "fits256": { "url": "shot-3", "width": 118, "height": 256 } }]
+      },
+      "relationships": { "tester": { "data": { "type": "betaTesters", "id": "demo-0001-0000-4000-8000-000000000001" } }, "build": { "data": { "type": "builds", "id": "demo-b007-0000-4000-8000-000000000007" } } }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ADemo0000000000000000004",
+      "attributes": {
+        "screenWidthInPoints": 393, "screenHeightInPoints": 852,
+        "buildBundleId": "com.example.app", "locale": "de-DE", "connectionType": "WIFI",
+        "osVersion": "26.6", "deviceFamily": "IPHONE", "devicePlatform": "IOS",
+        "timeZone": "Europe/Berlin", "carrier": null,
+        "diskBytesTotal": 256000000000, "diskBytesAvailable": 96000000000,
+        "createdDate": "2026-08-18T09:31:07.000Z",
+        "comment": "Beim Anmelden schlägt iOS meine E-Mail-Adresse nicht mehr vor.",
+        "deviceModel": "iPhone17_1", "batteryPercentage": 88,
+        "appUptimeInMilliseconds": 61000,
+        "sizedScreenshots": [{ "original": { "url": "shot-1", "width": 1179, "height": 2556 }, "fits1024": { "url": "shot-1", "width": 472, "height": 1024 }, "fits256": { "url": "shot-1", "width": 118, "height": 256 } }]
+      },
+      "relationships": { "tester": { "data": { "type": "betaTesters", "id": "demo-0003-0000-4000-8000-000000000003" } }, "build": { "data": { "type": "builds", "id": "demo-b006-0000-4000-8000-000000000006" } } }
+    },
+    {
+      "type": "betaFeedbackScreenshotSubmissions",
+      "id": "ADemo0000000000000000005",
+      "attributes": {
+        "screenWidthInPoints": 440, "screenHeightInPoints": 956,
+        "buildBundleId": "com.example.app", "locale": "en-US", "connectionType": "WIFI",
+        "osVersion": "26.6", "deviceFamily": "IPHONE", "devicePlatform": "IOS",
+        "timeZone": "America/Los_Angeles", "carrier": null,
+        "diskBytesTotal": 512000000000, "diskBytesAvailable": 210000000000,
+        "createdDate": "2026-08-17T16:09:52.000Z",
+        "comment": "There's nowhere to enter a price on a paid listing, and no way to say how I get paid.",
+        "deviceModel": "iPhone18_2", "batteryPercentage": 44,
+        "appUptimeInMilliseconds": 2632000,
+        "sizedScreenshots": [{ "original": { "url": "shot-2", "width": 1320, "height": 2868 }, "fits1024": { "url": "shot-2", "width": 471, "height": 1024 }, "fits256": { "url": "shot-2", "width": 118, "height": 256 } }]
+      },
+      "relationships": { "tester": { "data": { "type": "betaTesters", "id": "demo-0002-0000-4000-8000-000000000002" } }, "build": { "data": { "type": "builds", "id": "demo-b006-0000-4000-8000-000000000006" } } }
+    }
+  ],
+  "included": [
+    { "type": "betaTesters", "id": "demo-0001-0000-4000-8000-000000000001", "attributes": { "firstName": "Sam", "lastName": "Rivera", "email": "sam@example.com" } },
+    { "type": "betaTesters", "id": "demo-0002-0000-4000-8000-000000000002", "attributes": { "firstName": "Alex", "lastName": "Chen", "email": "alex@example.com" } },
+    { "type": "betaTesters", "id": "demo-0003-0000-4000-8000-000000000003", "attributes": { "firstName": "Jordan", "lastName": "Fischer", "email": "jordan@example.com" } },
+    { "type": "builds", "id": "demo-b007-0000-4000-8000-000000000007", "attributes": { "version": "7" }, "relationships": { "preReleaseVersion": { "links": { "related": "https://appstoreconnect.apple.com/iris/v1/builds/demo-b007-0000-4000-8000-000000000007/preReleaseVersion" } } } },
+    { "type": "builds", "id": "demo-b006-0000-4000-8000-000000000006", "attributes": { "version": "6" }, "relationships": { "preReleaseVersion": { "links": { "related": "https://appstoreconnect.apple.com/iris/v1/builds/demo-b006-0000-4000-8000-000000000006/preReleaseVersion" } } } }
+  ],
+  "meta": { "paging": { "total": 5, "limit": 200 } }
+}

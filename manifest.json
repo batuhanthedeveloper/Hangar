@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Hangar — Turn TestFlight feedback into agent-ready tasks",
+  "short_name": "Hangar",
+  "version": "0.1.0",
+  "description": "Select TestFlight tester feedback and export it as a ready-to-run task pack for Claude Code, Codex, Cursor or Copilot.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://appstoreconnect.apple.com/*",
+    "https://tf-feedback.itunes.apple.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Open Hangar"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/panel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://appstoreconnect.apple.com/*"
+      ],
+      "js": [
+        "src/content/bridge.js"
+      ],
+      "css": [
+        "src/content/bridge.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,1353 @@
+// ==UserScript==
+// @name         App Store Connect TestFlight → Claude Tasks
+// @namespace    ikrs.testflight.claude
+// @version      1.2.0
+// @description  Select TestFlight screenshot feedback and export tasks + screenshots for Claude Code
+// @author       IKRS
+// @match        https://appstoreconnect.apple.com/*
+// @run-at       document-idle
+// @grant        GM_xmlhttpRequest
+// @connect      tf-feedback.itunes.apple.com
+// @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  // ============================================================
+  // CONFIG
+  // ============================================================
+
+  const IMAGE_SELECTOR =
+    'img[src*="tf-feedback.itunes.apple.com/eimg/"]';
+
+  const selected = new Map();
+
+  let toolbar = null;
+  let countElement = null;
+  let statusElement = null;
+  let exportButton = null;
+
+  let scanTimer = null;
+  let exporting = false;
+
+  // ============================================================
+  // PAGE HELPERS
+  // ============================================================
+
+  function isScreenshotFeedbackPage() {
+    return location.pathname.includes('/testflight/screenshots');
+  }
+
+  function cleanText(element) {
+    return (
+      element?.textContent
+        ?.replace(/\u00a0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || ''
+    );
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // ============================================================
+  // SCREENSHOT HELPERS
+  // ============================================================
+
+  function getImageKey(img) {
+    try {
+      const url = new URL(img.src);
+
+      return url.pathname
+        .replace(/^\/eimg\//, '')
+        .replace(/\/fits\d+x\d+\.jpg$/, '');
+    } catch {
+      return img.src;
+    }
+  }
+
+  function getBestScreenshotUrl(img) {
+    const srcset = img.getAttribute('srcset');
+
+    if (srcset) {
+      const candidates = srcset
+        .split(',')
+        .map(item => item.trim())
+        .map(item => {
+          const match = item.match(/^(.+?)\s+(\d+(?:\.\d+)?x)$/);
+
+          return {
+            url: match?.[1] || item,
+            scale: match
+              ? parseFloat(match[2].replace('x', ''))
+              : 1,
+          };
+        })
+        .sort((a, b) => b.scale - a.scale);
+
+      if (candidates.length > 0) {
+        return candidates[0].url;
+      }
+    }
+
+    return img.currentSrc || img.src;
+  }
+
+  // ============================================================
+  // CARD DETECTION
+  // ============================================================
+
+  function getCardFromImage(img) {
+    let current = img;
+
+    while (current && current !== document.body) {
+      if (
+        current.matches?.(
+          'div[width="320px"][cursor="pointer"]'
+        )
+      ) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    // Fallback if Apple changes width attrs/classes.
+    current = img.parentElement;
+
+    while (current && current !== document.body) {
+      const hasName = !!current.querySelector?.('h6');
+      const paragraphs = current.querySelectorAll?.('p');
+
+      if (
+        hasName &&
+        paragraphs &&
+        paragraphs.length >= 2
+      ) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  function getFeedbackElement(card) {
+    const direct = card.querySelector(
+      'p[color="label"][title]'
+    );
+
+    if (direct) {
+      return direct;
+    }
+
+    const candidates = [
+      ...card.querySelectorAll('p[title]'),
+    ];
+
+    const feedbackCandidate = candidates.find(element => {
+      const value = cleanText(element);
+
+      if (!value) {
+        return false;
+      }
+
+      // Metadata usually looks like:
+      // 1.0 (7) · iPhone 16 Plus · 26.6
+      return !/^\d+(?:\.\d+)*\s+\(.+?\)/.test(value);
+    });
+
+    return (
+      feedbackCandidate ||
+      candidates[candidates.length - 1] ||
+      null
+    );
+  }
+
+  function getMetadataElement(card) {
+    return [...card.querySelectorAll('p')].find(element => {
+      const value = cleanText(element);
+
+      return (
+        value.includes('·') &&
+        /\(.+?\)/.test(value)
+      );
+    });
+  }
+
+  function extractFeedback(card) {
+    const img = card.querySelector(IMAGE_SELECTOR);
+
+    if (!img) {
+      return null;
+    }
+
+    const feedbackElement = getFeedbackElement(card);
+    const metadataElement = getMetadataElement(card);
+
+    const feedback =
+      feedbackElement?.getAttribute('title')?.trim() ||
+      cleanText(feedbackElement);
+
+    const metadata = cleanText(metadataElement);
+
+    const metadataParts = metadata
+      .split('·')
+      .map(part => part.trim());
+
+    const versionBuild = metadataParts[0] || '';
+    const device = metadataParts[1] || '';
+    const osVersion = metadataParts[2] || '';
+
+    const versionMatch =
+      versionBuild.match(/^(.+?)\s+\((.+?)\)$/);
+
+    const version =
+      versionMatch?.[1]?.trim() || versionBuild;
+
+    const build =
+      versionMatch?.[2]?.trim() || '';
+
+    const nameElement = card.querySelector('h6');
+
+    let submitted = '';
+
+    if (nameElement?.parentElement) {
+      const submittedElement =
+        nameElement.parentElement.querySelector('p');
+
+      submitted = cleanText(submittedElement);
+    }
+
+    return {
+      key: getImageKey(img),
+      feedback,
+      version,
+      build,
+      device,
+      osVersion,
+      submitted,
+      screenshotUrl: getBestScreenshotUrl(img),
+      sourceUrl: location.href,
+    };
+  }
+
+  // ============================================================
+  // CARD SELECTION
+  // ============================================================
+
+  function enhanceCard(card) {
+    const feedback = extractFeedback(card);
+
+    if (!feedback?.key) {
+      return;
+    }
+
+    card.style.position = 'relative';
+
+    let selector = card.querySelector(
+      ':scope > .tf-claude-selector'
+    );
+
+    if (!selector) {
+      selector = document.createElement('label');
+
+      selector.className = 'tf-claude-selector';
+
+      selector.innerHTML = `
+        <input type="checkbox">
+        <span>Task</span>
+      `;
+
+      for (const eventName of ['mousedown', 'mouseup', 'click']) {
+        selector.addEventListener(eventName, event => {
+          event.stopPropagation();
+        });
+      }
+
+      const checkbox =
+        selector.querySelector('input');
+
+      checkbox.addEventListener('click', event => {
+        event.stopPropagation();
+      });
+
+      checkbox.addEventListener('change', event => {
+        event.stopPropagation();
+
+        const currentFeedback =
+          extractFeedback(card);
+
+        if (!currentFeedback) {
+          return;
+        }
+
+        if (checkbox.checked) {
+          selected.set(
+            currentFeedback.key,
+            currentFeedback
+          );
+        } else {
+          selected.delete(currentFeedback.key);
+        }
+
+        updateCardState(card);
+        updateToolbar();
+      });
+
+      card.appendChild(selector);
+    }
+
+    selector.dataset.feedbackKey = feedback.key;
+
+    const checkbox =
+      selector.querySelector('input');
+
+    checkbox.checked =
+      selected.has(feedback.key);
+
+    updateCardState(card);
+  }
+
+  function updateCardState(card) {
+    const feedback = extractFeedback(card);
+
+    if (!feedback) {
+      return;
+    }
+
+    const isSelected =
+      selected.has(feedback.key);
+
+    card.classList.toggle(
+      'tf-claude-selected',
+      isSelected
+    );
+
+    const checkbox = card.querySelector(
+      '.tf-claude-selector input'
+    );
+
+    if (checkbox) {
+      checkbox.checked = isSelected;
+    }
+  }
+
+  function scanCards() {
+    if (!isScreenshotFeedbackPage()) {
+      if (toolbar) {
+        toolbar.style.display = 'none';
+      }
+
+      return;
+    }
+
+    ensureToolbar();
+
+    toolbar.style.display = 'block';
+
+    document
+      .querySelectorAll(IMAGE_SELECTOR)
+      .forEach(img => {
+        const card = getCardFromImage(img);
+
+        if (card) {
+          enhanceCard(card);
+        }
+      });
+  }
+
+  function scheduleScan() {
+    clearTimeout(scanTimer);
+
+    scanTimer = setTimeout(
+      scanCards,
+      100
+    );
+  }
+
+  // ============================================================
+  // TOOLBAR
+  // ============================================================
+
+  function ensureToolbar() {
+    if (toolbar) {
+      return;
+    }
+
+    toolbar = document.createElement('div');
+    toolbar.id = 'tf-claude-toolbar';
+
+    toolbar.innerHTML = `
+      <div class="tf-toolbar-header">
+        <div>
+          <strong>TestFlight Tasks</strong>
+          <div id="tf-selected-count">
+            0 selected
+          </div>
+        </div>
+
+        <div class="tf-logo">
+          CC
+        </div>
+      </div>
+
+      <div id="tf-toolbar-status"></div>
+
+      <div
+        id="tf-progress-container"
+        class="tf-progress-container"
+      >
+        <div
+          id="tf-progress-bar"
+          class="tf-progress-bar"
+        ></div>
+      </div>
+
+      <div class="tf-toolbar-actions">
+        <button id="tf-select-visible">
+          Select visible
+        </button>
+
+        <button id="tf-clear">
+          Clear
+        </button>
+      </div>
+
+      <button
+        id="tf-export"
+        class="tf-export"
+      >
+        Export for Claude Code
+      </button>
+    `;
+
+    document.body.appendChild(toolbar);
+
+    countElement =
+      toolbar.querySelector(
+        '#tf-selected-count'
+      );
+
+    statusElement =
+      toolbar.querySelector(
+        '#tf-toolbar-status'
+      );
+
+    exportButton =
+      toolbar.querySelector(
+        '#tf-export'
+      );
+
+    toolbar
+      .querySelector('#tf-clear')
+      .addEventListener('click', clearSelection);
+
+    toolbar
+      .querySelector('#tf-select-visible')
+      .addEventListener(
+        'click',
+        selectVisible
+      );
+
+    exportButton.addEventListener(
+      'click',
+      exportSelected
+    );
+
+    updateToolbar();
+  }
+
+  function clearSelection() {
+    if (exporting) {
+      return;
+    }
+
+    selected.clear();
+
+    document
+      .querySelectorAll(
+        '.tf-claude-selector input'
+      )
+      .forEach(input => {
+        input.checked = false;
+      });
+
+    document
+      .querySelectorAll(
+        '.tf-claude-selected'
+      )
+      .forEach(card => {
+        card.classList.remove(
+          'tf-claude-selected'
+        );
+      });
+
+    setStatus('');
+    setProgress(0);
+
+    updateToolbar();
+  }
+
+  function selectVisible() {
+    if (exporting) {
+      return;
+    }
+
+    document
+      .querySelectorAll(IMAGE_SELECTOR)
+      .forEach(img => {
+        const card = getCardFromImage(img);
+
+        if (!card) {
+          return;
+        }
+
+        const feedback =
+          extractFeedback(card);
+
+        if (!feedback) {
+          return;
+        }
+
+        selected.set(
+          feedback.key,
+          feedback
+        );
+
+        updateCardState(card);
+      });
+
+    updateToolbar();
+  }
+
+  function updateToolbar() {
+    if (!countElement) {
+      return;
+    }
+
+    countElement.textContent =
+      `${selected.size} selected`;
+
+    if (exportButton) {
+      exportButton.disabled =
+        selected.size === 0 ||
+        exporting;
+
+      exportButton.textContent =
+        exporting
+          ? 'Exporting…'
+          : 'Export for Claude Code';
+    }
+  }
+
+  function setStatus(message, type = '') {
+    if (!statusElement) {
+      return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.type = type;
+  }
+
+  function setProgress(percent) {
+    const container =
+      toolbar?.querySelector(
+        '#tf-progress-container'
+      );
+
+    const bar =
+      toolbar?.querySelector(
+        '#tf-progress-bar'
+      );
+
+    if (!container || !bar) {
+      return;
+    }
+
+    const normalized = Math.max(
+      0,
+      Math.min(100, percent)
+    );
+
+    if (normalized <= 0) {
+      container.style.display = 'none';
+      bar.style.width = '0%';
+
+      return;
+    }
+
+    container.style.display = 'block';
+    bar.style.width = `${normalized}%`;
+  }
+
+  // ============================================================
+  // SCREENSHOT DOWNLOAD
+  // ============================================================
+
+  function downloadArrayBuffer(url) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url,
+        responseType: 'arraybuffer',
+        timeout: 30000,
+
+        onload(response) {
+          if (
+            response.status >= 200 &&
+            response.status < 300
+          ) {
+            resolve(response.response);
+            return;
+          }
+
+          reject(
+            new Error(
+              `Screenshot HTTP ${response.status}`
+            )
+          );
+        },
+
+        onerror(error) {
+          reject(
+            error instanceof Error
+              ? error
+              : new Error(
+                  'Screenshot download failed'
+                )
+          );
+        },
+
+        ontimeout() {
+          reject(
+            new Error(
+              'Screenshot download timed out'
+            )
+          );
+        },
+      });
+    });
+  }
+
+  // ============================================================
+  // TASK FILE GENERATION
+  // ============================================================
+
+  function escapeMarkdown(value) {
+    return String(value || '')
+      .replace(/\r/g, '')
+      .trim();
+  }
+
+  function getTaskId(index) {
+    return `TF-${String(index + 1).padStart(
+      3,
+      '0'
+    )}`;
+  }
+
+  function buildTaskMarkdown(task, index) {
+    const id = getTaskId(index);
+
+    return `# ${id}
+
+Status: TODO
+
+## Feedback
+
+${escapeMarkdown(task.feedback) || 'No written feedback.'}
+
+## Environment
+
+- App Version: ${task.version || 'Unknown'}
+- Build: ${task.build || 'Unknown'}
+- Device: ${task.device || 'Unknown'}
+- OS: ${task.osVersion || 'Unknown'}
+- Submitted: ${task.submitted || 'Unknown'}
+
+## Screenshot
+
+\`../screenshots/${id}.jpg\`
+
+Inspect the screenshot before making any implementation decisions.
+
+## Source
+
+App Store Connect / TestFlight Screenshot Feedback
+
+## Root Cause
+
+Pending investigation.
+
+## Changes Made
+
+Pending.
+`;
+  }
+
+  function buildTasksIndex(tasks) {
+    const lines = tasks.map(
+      (task, index) => {
+        const id = getTaskId(index);
+
+        const title =
+          task.feedback ||
+          'Screenshot feedback';
+
+        return `- [ ] [${id}](tasks/${id}.md) - ${title}`;
+      }
+    );
+
+    return `# TestFlight Feedback Tasks
+
+Generated: ${new Date().toISOString()}
+
+Total tasks: ${tasks.length}
+
+## Tasks
+
+${lines.join('\n')}
+
+## Claude Code
+
+From the repository root:
+
+\`\`\`text
+Fix all pending TestFlight feedback in .testflight/
+\`\`\`
+`;
+  }
+
+  function buildClaudeInstructions() {
+    return `# TestFlight Feedback Workflow
+
+The \`.testflight/tasks\` directory contains issues reported through TestFlight Screenshot Feedback.
+
+## Instructions
+
+For every task where \`Status: TODO\`:
+
+1. Read the complete feedback.
+2. Inspect the referenced screenshot.
+3. Find the relevant implementation in the codebase.
+4. Investigate the root cause.
+5. Implement a proper fix.
+6. Do not modify unrelated functionality.
+7. Preserve the project's existing architecture and conventions.
+8. Run relevant static analysis and tests.
+9. Update the task file when complete.
+
+When completing a task:
+
+- Change \`Status: TODO\` to \`Status: DONE\`.
+- Fill in \`Root Cause\`.
+- Fill in \`Changes Made\`.
+- Mention relevant files that were modified.
+
+Screenshots are part of the task context and must be inspected.
+
+Do not assume that two visually similar reports necessarily share the same root cause.
+`;
+  }
+
+  // ============================================================
+  // FILE DOWNLOAD
+  // ============================================================
+
+  function createFilename() {
+    const date = new Date();
+
+    const year =
+      date.getFullYear();
+
+    const month =
+      String(
+        date.getMonth() + 1
+      ).padStart(2, '0');
+
+    const day =
+      String(
+        date.getDate()
+      ).padStart(2, '0');
+
+    const hour =
+      String(
+        date.getHours()
+      ).padStart(2, '0');
+
+    const minute =
+      String(
+        date.getMinutes()
+      ).padStart(2, '0');
+
+    return (
+      `testflight-feedback-` +
+      `${year}${month}${day}-` +
+      `${hour}${minute}.zip`
+    );
+  }
+
+  function downloadBlob(blob, filename) {
+    const objectUrl =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement('a');
+
+    link.href = objectUrl;
+    link.download = filename;
+
+    link.style.position = 'fixed';
+    link.style.left = '-10000px';
+    link.style.top = '-10000px';
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    // Keep the blob URL alive long enough for Chrome to start
+    // the download reliably.
+    setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    }, 60000);
+  }
+
+  // ============================================================
+  // EXPORT
+  // ============================================================
+
+  async function exportSelected() {
+    if (
+      selected.size === 0 ||
+      exporting
+    ) {
+      return;
+    }
+
+    exporting = true;
+
+    updateToolbar();
+    setProgress(1);
+
+    const tasks = [
+      ...selected.values(),
+    ];
+
+    try {
+      // fflate expects:
+      // { "path/file.ext": Uint8Array }
+      const files = {};
+
+      files['.testflight/CLAUDE.md'] =
+        fflate.strToU8(
+          buildClaudeInstructions()
+        );
+
+      files['.testflight/TASKS.md'] =
+        fflate.strToU8(
+          buildTasksIndex(tasks)
+        );
+
+      const jsonTasks = [];
+
+      // ========================================================
+      // DOWNLOAD SCREENSHOTS
+      // ========================================================
+
+      for (
+        let index = 0;
+        index < tasks.length;
+        index++
+      ) {
+        const task = tasks[index];
+        const id = getTaskId(index);
+
+        const current =
+          index + 1;
+
+        const percent =
+          Math.round(
+            (current / tasks.length) * 80
+          );
+
+        setProgress(percent);
+
+        setStatus(
+          `Downloading screenshot ${current}/${tasks.length}…`
+        );
+
+        let screenshotDownloaded = false;
+
+        try {
+          const buffer =
+            await downloadArrayBuffer(
+              task.screenshotUrl
+            );
+
+          files[
+            `.testflight/screenshots/${id}.jpg`
+          ] = new Uint8Array(buffer);
+
+          screenshotDownloaded = true;
+        } catch (error) {
+          console.error(
+            `[TestFlight Claude] Screenshot failed: ${id}`,
+            error
+          );
+
+          files[
+            `.testflight/screenshots/${id}-DOWNLOAD-FAILED.txt`
+          ] = fflate.strToU8(
+            [
+              'Screenshot download failed.',
+              '',
+              `Task: ${id}`,
+              '',
+              `Screenshot URL: ${task.screenshotUrl}`,
+              '',
+              `Error: ${String(
+                error?.message || error
+              )}`,
+            ].join('\n')
+          );
+        }
+
+        files[
+          `.testflight/tasks/${id}.md`
+        ] = fflate.strToU8(
+          buildTaskMarkdown(
+            task,
+            index
+          )
+        );
+
+        jsonTasks.push({
+          id,
+          status: 'TODO',
+          feedback:
+            task.feedback,
+
+          environment: {
+            version:
+              task.version,
+
+            build:
+              task.build,
+
+            device:
+              task.device,
+
+            osVersion:
+              task.osVersion,
+
+            submitted:
+              task.submitted,
+          },
+
+          screenshot:
+            screenshotDownloaded
+              ? `screenshots/${id}.jpg`
+              : null,
+
+          screenshotSourceUrl:
+            task.screenshotUrl,
+
+          sourceUrl:
+            task.sourceUrl,
+
+          sourceKey:
+            task.key,
+        });
+
+        // Let the UI repaint between downloads.
+        await sleep(0);
+      }
+
+      files['.testflight/tasks.json'] =
+        fflate.strToU8(
+          JSON.stringify(
+            {
+              generatedAt:
+                new Date().toISOString(),
+
+              source:
+                'App Store Connect TestFlight Screenshot Feedback',
+
+              count:
+                jsonTasks.length,
+
+              tasks:
+                jsonTasks,
+            },
+            null,
+            2
+          )
+        );
+
+      // ========================================================
+      // CREATE ZIP WITH FFLATE
+      // ========================================================
+
+      setProgress(90);
+      setStatus('Creating ZIP…');
+
+      // Let browser paint status before synchronous ZIP call.
+      await sleep(50);
+
+      const start =
+        performance.now();
+
+      // level: 0 = store files without re-compressing them.
+      // JPEG screenshots are already compressed, so this is much
+      // faster and avoids the JSZip "Creating ZIP… 0%" issue.
+      const zipped =
+        fflate.zipSync(
+          files,
+          {
+            level: 0,
+          }
+        );
+
+      const zipCreationMs =
+        Math.round(
+          performance.now() - start
+        );
+
+      console.log(
+        `[TestFlight Claude] ZIP created in ${zipCreationMs}ms`
+      );
+
+      // ========================================================
+      // CREATE BLOB
+      // ========================================================
+
+      const blob =
+        new Blob(
+          [zipped],
+          {
+            type: 'application/zip',
+          }
+        );
+
+      const sizeMb =
+        (
+          blob.size /
+          1024 /
+          1024
+        ).toFixed(2);
+
+      setProgress(100);
+
+      setStatus(
+        `ZIP ready (${sizeMb} MB), downloading…`
+      );
+
+      // ========================================================
+      // DOWNLOAD ZIP
+      // ========================================================
+
+      const filename =
+        createFilename();
+
+      downloadBlob(
+        blob,
+        filename
+      );
+
+      setStatus(
+        `${tasks.length} tasks exported ✓`,
+        'success'
+      );
+
+      console.log(
+        '[TestFlight Claude] Export complete',
+        {
+          filename,
+          tasks:
+            tasks.length,
+          size:
+            blob.size,
+          zipCreationMs,
+        }
+      );
+    } catch (error) {
+      console.error(
+        '[TestFlight Claude] Export failed',
+        error
+      );
+
+      setProgress(0);
+
+      setStatus(
+        `Export failed: ${
+          error?.message ||
+          String(error)
+        }`,
+        'error'
+      );
+    } finally {
+      exporting = false;
+
+      updateToolbar();
+    }
+  }
+
+  // ============================================================
+  // STYLES
+  // ============================================================
+
+  function injectStyles() {
+    if (
+      document.getElementById(
+        'tf-claude-styles'
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement(
+        'style'
+      );
+
+    style.id =
+      'tf-claude-styles';
+
+    style.textContent = `
+      #tf-claude-toolbar {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 999999;
+        width: 300px;
+        box-sizing: border-box;
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(25, 25, 27, .96);
+        color: white;
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          "SF Pro Text",
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        box-shadow:
+          0 10px 40px
+          rgba(0, 0, 0, .28);
+        backdrop-filter:
+          blur(20px);
+        -webkit-backdrop-filter:
+          blur(20px);
+      }
+
+      .tf-toolbar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .tf-toolbar-header strong {
+        display: block;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      #tf-selected-count {
+        margin-top: 2px;
+        font-size: 12px;
+        opacity: .62;
+      }
+
+      .tf-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background:
+          rgba(255, 255, 255, .10);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      #tf-toolbar-status {
+        min-height: 16px;
+        margin: 4px 0 8px;
+        overflow: hidden;
+        font-size: 11px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color:
+          rgba(255, 255, 255, .68);
+      }
+
+      #tf-toolbar-status[data-type="success"] {
+        color: #72e29d;
+      }
+
+      #tf-toolbar-status[data-type="error"] {
+        color: #ff8181;
+      }
+
+      .tf-progress-container {
+        display: none;
+        width: 100%;
+        height: 4px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background:
+          rgba(255, 255, 255, .10);
+      }
+
+      .tf-progress-bar {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: #0a84ff;
+        transition:
+          width .15s ease;
+      }
+
+      .tf-toolbar-actions {
+        display: grid;
+        grid-template-columns:
+          1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      #tf-claude-toolbar button {
+        appearance: none;
+        border: 0;
+        border-radius: 8px;
+        padding:
+          9px 10px;
+        cursor: pointer;
+        background:
+          rgba(255, 255, 255, .10);
+        color: white;
+        font: inherit;
+        font-size: 12px;
+        transition:
+          background .15s ease,
+          opacity .15s ease;
+      }
+
+      #tf-claude-toolbar button:hover:not(:disabled) {
+        background:
+          rgba(255, 255, 255, .16);
+      }
+
+      #tf-claude-toolbar button:disabled {
+        opacity: .35;
+        cursor: default;
+      }
+
+      #tf-claude-toolbar .tf-export {
+        width: 100%;
+        background: white;
+        color: #111;
+        font-weight: 600;
+      }
+
+      #tf-claude-toolbar .tf-export:hover:not(:disabled) {
+        background: #ececec;
+      }
+
+      .tf-claude-selector {
+        position: absolute;
+        z-index: 10000;
+        top: 10px;
+        left: 10px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding:
+          6px 8px;
+        border-radius: 8px;
+        background:
+          rgba(20, 20, 22, .90);
+        color: white;
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          "SF Pro Text",
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        box-shadow:
+          0 2px 8px
+          rgba(0, 0, 0, .25);
+        backdrop-filter:
+          blur(10px);
+        -webkit-backdrop-filter:
+          blur(10px);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .tf-claude-selector input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        cursor: pointer;
+        accent-color: #0a84ff;
+      }
+
+      .tf-claude-selected {
+        outline:
+          3px solid #0a84ff !important;
+        outline-offset:
+          -3px;
+        border-radius:
+          10px;
+      }
+    `;
+
+    document.head.appendChild(
+      style
+    );
+  }
+
+  // ============================================================
+  // SPA / REACT VIRTUALIZED OBSERVATION
+  // ============================================================
+
+  injectStyles();
+
+  const observer =
+    new MutationObserver(() => {
+      scheduleScan();
+    });
+
+  observer.observe(
+    document.body,
+    {
+      childList: true,
+      subtree: true,
+    }
+  );
+
+  // App Store Connect is a SPA.
+  // ReactVirtualized also removes/recreates cards while scrolling.
+  setInterval(() => {
+    scheduleScan();
+  }, 1200);
+
+  scanCards();
+
+  console.log(
+    '[TestFlight Claude] v1.2.0 loaded'
+  );
+})();

@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hangar test harness</title>
+    <style>
+      body { font: 13px/1.5 ui-monospace, Menlo, monospace; padding: 20px; max-width: 900px; }
+      .pass { color: #0a7d34; }
+      .fail { color: #c0182b; font-weight: 700; }
+      pre { background: #f4f4f6; padding: 12px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; }
+      h2 { margin-top: 28px; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>Hangar test harness</h1>
+    <div id="results">Running…</div>
+
+    <script type="module">
+      import { fetchAllFeedback, normalizeAll, parseAppContext } from '../src/lib/asc-api.js';
+      import { buildTaskPack, taskId, titleFor } from '../src/lib/format.js';
+      import { deriveSignals, formatBytes, formatDuration } from '../src/lib/signals.js';
+      import { describeCrash, firstSourceLocation, parseCrashLog } from '../src/lib/crashlog.js';
+      import { describeDevice } from '../src/lib/devices.js';
+      import { createZip, textToBytes } from '../src/lib/zip.js';
+
+      const { PRODUCT } = await import('../src/lib/config.js');
+      const PRODUCT_EXPORT_DIR = PRODUCT.exportDir;
+
+      const checks = [];
+
+      function check(name, condition, detail = '') {
+        checks.push({ name, ok: Boolean(condition), detail });
+      }
+
+      const payload = await (await fetch('./fixtures/screenshot-submissions.json')).json();
+      const items = normalizeAll(payload, 'screenshot', 'original');
+
+      // --- URL parsing ---
+      const ctx = parseAppContext(
+        'https://appstoreconnect.apple.com/teams/00000000-1111-2222-3333-444444444444/apps/1234567890/testflight/screenshots',
+      );
+      check('appId parsed', ctx.appId === '1234567890', ctx.appId);
+      check('teamId parsed', ctx.teamId === '00000000-1111-2222-3333-444444444444', ctx.teamId);
+      check('kind parsed', ctx.kind === 'screenshot', ctx.kind);
+      check(
+        'crash page detected',
+        parseAppContext('https://appstoreconnect.apple.com/apps/1/testflight/crashes').kind === 'crash',
+      );
+
+      // --- normalisation ---
+      check('all records normalised', items.length === 4, String(items.length));
+      const first = items[0];
+      check('comment preserved', first.comment.startsWith('Fotoğrafı'), first.comment.slice(0, 20));
+      check('build resolved', first.build === '7', first.build);
+      check('app version resolved via preReleaseVersion', first.version === '1.0', first.version);
+      check('device named', first.device.name === 'iPhone 16 Plus', first.device.name);
+      check('platform label cased', first.device.platform === 'iOS', first.device.platform);
+      check('device marked exact', first.device.exactName === true);
+      check('screen points captured', first.device.screenPoints?.width === 430);
+      check(
+        'original screenshot chosen',
+        first.screenshots[0].url.includes('original.jpg') && first.screenshots[0].width === 1290,
+        first.screenshots[0].url,
+      );
+      check(
+        'preview uses a mid-size variant, not the multi-megabyte original',
+        first.screenshots[0].previewUrl.includes('fits1024'),
+        first.screenshots[0].previewUrl,
+      );
+      check(
+        'preview falls back when no mid size exists',
+        items[1].screenshots[0].previewUrl.includes('original'),
+        items[1].screenshots[0].previewUrl,
+      );
+      check(
+        'thumbnail uses small variant',
+        first.screenshots[0].thumbnailUrl.includes('fits256'),
+        first.screenshots[0].thumbnailUrl,
+      );
+      check('tester anonymous id stable', first.tester.anonymousId === 'tester-aaaa', first.tester.anonymousId);
+      check('expiry captured', first.screenshots[0].expiresAt === '2026-08-26T00:00:00Z');
+
+      const older = items[2];
+      check('second build resolved', older.build === '6', older.build);
+      check('iPhone18,2 named', older.device.name === 'iPhone 17 Pro Max', older.device.name);
+
+      const unknown = items[3];
+      check('unknown hardware not invented', unknown.device.exactName === false);
+      check(
+        'unknown hardware shows identifier',
+        unknown.device.name.includes('iPhone99,1'),
+        unknown.device.name,
+      );
+      check('missing tester tolerated', unknown.tester === null);
+      check('empty screenshots tolerated', unknown.screenshots.length === 0);
+
+      // --- size preference ---
+      const smaller = normalizeAll(payload, 'screenshot', 'fits1024');
+      check(
+        'fits1024 honoured when present',
+        smaller[0].screenshots[0].url.includes('fits1024'),
+        smaller[0].screenshots[0].url,
+      );
+      check(
+        'falls back to original when size missing',
+        smaller[2].screenshots[0].url.includes('original'),
+        smaller[2].screenshots[0].url,
+      );
+
+      // --- signals ---
+      const lowDisk = deriveSignals(items[0]).find((s) => s.label === 'Low free storage');
+      check('low disk detected (576 MB free)', Boolean(lowDisk));
+      const longSession = deriveSignals(items[1]).find((s) => s.label === 'Long-running session');
+      check('56 min session flagged', Boolean(longSession), longSession?.detail);
+      check('healthy device has no disk warning', !deriveSignals(items[2]).some((s) => s.label === 'Low free storage'));
+      check('cellular flagged', deriveSignals(items[3]).some((s) => s.label === 'Cellular connection'));
+      check('formatBytes', formatBytes(604131328) === '576 MB', formatBytes(604131328));
+      check('formatDuration', formatDuration(3352000) === '56 min', formatDuration(3352000));
+
+      // --- task ids ---
+      check('task id stable and safe', taskId(items[0]) === 'TF-ANdxloTdD3', taskId(items[0]));
+      check(
+        'task ids unique',
+        new Set(items.map(taskId)).size === items.length,
+      );
+
+      // --- task pack ---
+      const pack = buildTaskPack(items, {
+        includeZipGuide: true,
+        includeTesterIdentity: false,
+        presets: ['claude', 'agents'],
+        appId: '1234567890',
+        exportedAt: '2026-08-21T09:00:00.000Z',
+      });
+
+      const paths = pack.files.map((f) => f.path);
+      check('TASKS.md emitted', paths.includes('testflight/TASKS.md'));
+      check('TRIAGE.md emitted', paths.includes('testflight/TRIAGE.md'));
+      check('CLAUDE.md emitted', paths.includes('testflight/CLAUDE.md'));
+      check('slash command emitted', paths.includes('.claude/commands/hangar.md'));
+      check('AGENTS.md emitted', paths.includes('testflight/AGENTS.md'));
+      check('feedback.json emitted', paths.includes('testflight/feedback.json'));
+      check('one task file per report', paths.filter((p) => p.startsWith('testflight/tasks/')).length === 4);
+      check('screenshots queued only when present', pack.screenshots.length === 3, String(pack.screenshots.length));
+
+      const taskBody = pack.files.find((f) => f.path === 'testflight/tasks/TF-ANdxloTdD3.md').text;
+      check('front matter present', taskBody.startsWith('---\nid: TF-ANdxloTdD'));
+      check('status todo', taskBody.includes('status: todo'));
+      check('tester email redacted', !taskBody.includes('tester.one@example.com'), 'leak!');
+      check('anonymous handle used', taskBody.includes('tester-aaaa (identity redacted)'));
+      check('signal rendered', taskBody.includes('Low free storage'));
+      check('screenshot linked', taskBody.includes('../screenshots/TF-ANdxloTdD3.jpg'));
+      check('pixel-to-point ratio stated', taskBody.includes('divide any pixel coordinate by 3'));
+      check('device locale surfaced', taskBody.includes('Device locale: `en-TR`'));
+      check(
+        'locale note does not claim a language',
+        !taskBody.includes('Reported in locale'),
+      );
+
+      const withIdentity = buildTaskPack([items[0]], {
+        includeTesterIdentity: true,
+        presets: [],
+        appId: '1',
+        exportedAt: '2026-08-21T09:00:00.000Z',
+      });
+      const identityBody = withIdentity.files.find((f) => f.path.includes('/tasks/')).text;
+      check('identity included when enabled', identityBody.includes('tester.one@example.com'));
+
+      const json = JSON.parse(pack.files.find((f) => f.path === 'testflight/feedback.json').text);
+      check('json redaction flag', json.testerIdentityIncluded === false);
+      check('json has no emails', !JSON.stringify(json).includes('@example.com'), 'leak!');
+      check('json count matches', json.count === 4);
+
+      const triage = pack.files.find((f) => f.path === 'testflight/TRIAGE.md').text;
+      check('triage mentions both builds', triage.includes('builds 6, 7') || triage.includes('builds 7, 6'), triage.match(/builds [^.]*/)?.[0]);
+
+      const emptyComment = pack.files.find((f) => f.path === `testflight/tasks/${taskId(items[3])}.md`).text;
+      check('empty comment handled', emptyComment.includes('submitted no written description'));
+
+      // --- request shape ---
+      // App Store Connect rejects a nested include and an unknown field type:
+      //   include=build.preReleaseVersion -> not a valid relationship name
+      //   fields[preReleaseVersions]      -> not a valid type name
+      // Both produced an HTTP 400, so both must stay out of the query.
+      function mockServer({ rejectLimit = null } = {}) {
+        const calls = [];
+
+        async function fetcher(url) {
+          calls.push(url);
+
+          const parsed = new URL(url);
+
+          if (parsed.pathname.includes('/preReleaseVersion')) {
+            return { data: { type: 'preReleaseVersions', id: 'pre-1', attributes: { version: '1.0' } } };
+          }
+
+          if (rejectLimit && parsed.searchParams.get('limit') === String(rejectLimit)) {
+            const error = new Error('A parameter has an invalid value');
+            error.status = 400;
+            throw error;
+          }
+
+          // Builds carry only a relationship link, exactly as the real API does.
+          const included = payload.included
+            .filter((item) => item.type !== 'preReleaseVersions')
+            .map((item) =>
+              item.type === 'builds'
+                ? {
+                    ...item,
+                    relationships: {
+                      preReleaseVersion: {
+                        links: {
+                          related: `https://appstoreconnect.apple.com/iris/v1/builds/${item.id}/preReleaseVersion`,
+                        },
+                      },
+                    },
+                  }
+                : item,
+            );
+
+          return { data: payload.data, included, meta: payload.meta };
+        }
+
+        return { fetcher, calls };
+      }
+
+      const server = mockServer();
+      const fetched = await fetchAllFeedback('1234567890', 'screenshot', server.fetcher);
+      const feedbackUrl = new URL(server.calls[0]);
+
+      check('no nested include', !feedbackUrl.searchParams.get('include').includes('.'), feedbackUrl.searchParams.get('include'));
+      check('include is tester,build', feedbackUrl.searchParams.get('include') === 'tester,build');
+      check('no preReleaseVersions field param', !server.calls[0].includes('fields%5BpreReleaseVersions%5D'));
+      check('fields[builds] kept', feedbackUrl.searchParams.get('fields[builds]') === 'version,preReleaseVersion');
+      check('endpoint path correct', feedbackUrl.pathname === '/iris/v1/apps/1234567890/betaFeedbackScreenshotSubmissions');
+      check(
+        'version resolved via relationship link',
+        server.calls.some((c) => c.endsWith('/preReleaseVersion')),
+      );
+      check(
+        'resolved versions folded into included',
+        fetched.included.some((i) => i.type === 'preReleaseVersions' && i.attributes.version === '1.0'),
+      );
+      check(
+        'app version reaches normalised output',
+        normalizeAll(fetched, 'screenshot', 'original')[0].version === '1.0',
+      );
+
+      const limited = mockServer({ rejectLimit: 200 });
+      const afterFallback = await fetchAllFeedback('1', 'screenshot', limited.fetcher);
+      check('falls back to a smaller page size on 400', afterFallback.data.length === 4);
+      check(
+        'fallback uses limit=60',
+        new URL(limited.calls[1]).searchParams.get('limit') === '60',
+        new URL(limited.calls[1]).searchParams.get('limit'),
+      );
+
+      const versionFailure = {
+        fetcher: async (url) => {
+          if (url.endsWith('/preReleaseVersion')) {
+            throw new Error('boom');
+          }
+          return mockServer().fetcher(url);
+        },
+      };
+      const degraded = await fetchAllFeedback('1', 'screenshot', versionFailure.fetcher);
+      check(
+        'version failure degrades instead of breaking export',
+        normalizeAll(degraded, 'screenshot', 'original')[0].build === '7',
+      );
+
+      // --- crash submissions ---
+      // Crash reports differ from screenshot feedback in three ways that all
+      // bit at least once: the crash log is a relationship rather than an
+      // attribute, there are no screenshots at all, and `comment` may be null.
+      const crashPayload = await (await fetch('./fixtures/crash-submissions.json')).json();
+
+      const CRASH_LOG_BODY = await (await fetch('./fixtures/crash-log.txt')).text();
+      const SYSTEM_CRASH_LOG = await (await fetch('./fixtures/crash-log-system.txt')).text();
+
+      function crashServer({ logShape = 'attribute', failLogs = false } = {}) {
+        const calls = [];
+
+        return {
+          calls,
+          async fetcher(url) {
+            calls.push(url);
+
+            if (url.endsWith('/preReleaseVersion')) {
+              return { data: { type: 'preReleaseVersions', id: 'pre-1', attributes: { version: '1.0' } } };
+            }
+
+            if (url.endsWith('/crashLog')) {
+              if (failLogs) {
+                throw new Error('boom');
+              }
+              if (logShape === 'text') {
+                return CRASH_LOG_BODY;
+              }
+              if (logShape === 'unknown-key') {
+                return { data: { attributes: { somethingElse: CRASH_LOG_BODY, note: 'short' } } };
+              }
+              return { data: { type: 'betaCrashLogs', attributes: { logText: CRASH_LOG_BODY } } };
+            }
+
+            return crashPayload;
+          },
+        };
+      }
+
+      const crashSrv = crashServer();
+      const crashFetched = await fetchAllFeedback('1234567890', 'crash', crashSrv.fetcher);
+      const crashes = normalizeAll(crashFetched, 'crash', 'original');
+
+      check('crash endpoint used', crashSrv.calls[0].includes('betaFeedbackCrashSubmissions'));
+      check('crash log link followed', crashSrv.calls.filter((c) => c.endsWith('/crashLog')).length === 2);
+      check('crash log attached via logText', crashes[0].crashLog.includes('EXC_BREAKPOINT'));
+      check('crash point captured', crashes[0].crashPointId === 'CfDE6UO7xBkALN6mjzvhLX');
+      check('incident captured', crashes[0].incidentId.startsWith('E6811843'));
+      check('crash has no screenshots', crashes[0].screenshots.length === 0);
+      check('null comment tolerated', crashes[0].comment === '');
+      check('older hardware named', crashes[0].device.name === 'iPhone 11', crashes[0].device.name);
+      check('null uptime tolerated', crashes[1].conditions.appUptimeInMilliseconds === null);
+
+      const asText = normalizeAll(
+        await fetchAllFeedback('1', 'crash', crashServer({ logShape: 'text' }).fetcher),
+        'crash', 'original',
+      );
+      check('plain-text crash log accepted', asText[0].crashLog.includes('Thread 0 Crashed'));
+
+      const oddKey = normalizeAll(
+        await fetchAllFeedback('1', 'crash', crashServer({ logShape: 'unknown-key' }).fetcher),
+        'crash', 'original',
+      );
+      check(
+        'unknown crash-log key falls back to the longest multi-line value',
+        oddKey[0].crashLog.includes('EXC_BREAKPOINT'),
+      );
+
+      const noLogs = normalizeAll(
+        await fetchAllFeedback('1', 'crash', crashServer({ failLogs: true }).fetcher),
+        'crash', 'original',
+      );
+      check('failed crash log does not break the load', noLogs.length === 2);
+      check('failed crash log leaves null', noLogs[0].crashLog === null);
+
+      // Signals
+      const launchSignal = deriveSignals(crashes[0]).find((s) => s.label === 'Crashed near launch');
+      check('20 s crash flagged as launch-path', Boolean(launchSignal), launchSignal?.detail);
+      check('short durations read in seconds', formatDuration(20000) === '20 s', formatDuration(20000));
+      check(
+        'screenshot feedback never gets the crash signal',
+        !deriveSignals(items[1]).some((s) => s.label === 'Crashed near launch'),
+      );
+
+      // Task pack
+      const crashPack = buildTaskPack(crashes, {
+        includeTesterIdentity: false,
+        presets: ['claude'],
+        appId: '1',
+        exportedAt: '2026-08-21T09:00:00.000Z',
+        includeZipGuide: false,
+      });
+
+      const crashTask = crashPack.files.find((f) => f.path.includes(`/tasks/${taskId(crashes[0])}.md`)).text;
+      check('crash front matter carries the crash point', crashTask.includes('crash_point: "CfDE6UO7xBkALN6mjzvhLX"'));
+      check('crash front matter carries the incident', crashTask.includes('incident: "E6811843'));
+      check('raw log written as its own file', crashPack.files.some((f) => f.path.endsWith(`crashes/${taskId(crashes[0])}.crash`)));
+      check('no screenshot section for a crash', !crashTask.includes('## Screenshot'));
+      check('crash pack queues no screenshot downloads', crashPack.screenshots.length === 0);
+      check('uptime labelled as crash, not report', crashTask.includes('Session length before crash: 20 s'));
+      check(
+        'locale note omitted when there is no comment to describe',
+        !crashTask.includes('Device locale:'),
+      );
+      check(
+        'locale note still present when there is a comment',
+        crashPack.files
+          .find((f) => f.path.includes(`/tasks/${taskId(crashes[1])}.md`))
+          .text.includes('Device locale: `tr-TR`'),
+      );
+      check(
+        'title names the failure and where it happened',
+        titleFor(crashes[0]) === 'Array index is out of range at TokenTextView.swift:226',
+        titleFor(crashes[0]),
+      );
+
+      const crashInstructions = crashPack.files.find((f) => f.path.endsWith('CLAUDE.md')).text;
+      check('crash instructions mention the crash log', crashInstructions.includes('Read the crash log in full'));
+      check(
+        'crash-only instructions do not send the agent after screenshots',
+        !crashInstructions.includes('Open the screenshot'),
+      );
+
+      const mixedInstructions = buildTaskPack([...items, ...crashes], {
+        includeTesterIdentity: false,
+        presets: ['claude'],
+        appId: '1',
+        exportedAt: '2026-08-21T09:00:00.000Z',
+        includeZipGuide: false,
+      }).files.find((f) => f.path.endsWith('CLAUDE.md')).text;
+      check('mixed pack covers both kinds', mixedInstructions.includes('Open the screenshot') && mixedInstructions.includes('crash log'));
+
+      // --- crash log parsing ---
+      // The log is ~10 KB of which most is idle threads, registers and binary
+      // images. What an agent needs is the trap message and the frames that
+      // belong to the app, with their file and line.
+      const parsed = parseCrashLog(CRASH_LOG_BODY);
+
+      check('process name read', parsed.process === 'ExampleApp', parsed.process);
+      check('pid stripped from process', !parsed.process.includes('['));
+      check('exception type read', parsed.exceptionType === 'EXC_BREAKPOINT (SIGTRAP)', parsed.exceptionType);
+      check('os version read', parsed.osVersion.includes('18.6.2'));
+      check('crashed thread identified', parsed.crashedThread === 0);
+      check(
+        'swift trap message extracted',
+        parsed.runtimeFailure === 'Array index is out of range',
+        parsed.runtimeFailure,
+      );
+      check('frames counted', parsed.frameCount === 12, String(parsed.frameCount));
+      check(
+        'only app frames kept',
+        parsed.appFrames.every((f) => f.binary === 'ExampleApp'),
+        parsed.appFrames.map((f) => f.binary).join(','),
+      );
+      check('system frames dropped', parsed.appFrames.length === 5, String(parsed.appFrames.length));
+      check(
+        'trap marker frame not repeated in the list',
+        !parsed.appFrames.some((f) => f.symbol.startsWith('Swift runtime failure')),
+      );
+      check(
+        'entry point frame dropped',
+        !parsed.appFrames.some((f) => f.symbol.includes('$main()')),
+      );
+      check(
+        'line 0 is not treated as a location',
+        !parsed.appFrames.some((f) => f.location?.endsWith(':0')),
+      );
+      check('offsets stripped from symbols', !parsed.appFrames.some((f) => /\+ \d+$/.test(f.symbol)));
+      check(
+        'compiler-generated locations discarded',
+        !parsed.appFrames.some((f) => f.location?.includes('compiler-generated')),
+      );
+      check(
+        'first real source location found',
+        firstSourceLocation(parsed) === 'TokenTextView.swift:226',
+        firstSourceLocation(parsed),
+      );
+      check('crash described in one line', describeCrash(parsed) === 'Array index is out of range');
+
+      const systemParsed = parseCrashLog(SYSTEM_CRASH_LOG);
+      check('non-zero crashed thread found', systemParsed.crashedThread === 3);
+      check('system-only crash falls back to the top of the stack', systemParsed.appFrames.length === 4);
+      check('fallback is marked as not the app', systemParsed.appFramesAreOwn === false);
+      check(
+        'exception type used when there is no swift trap',
+        describeCrash(systemParsed) === 'Crash (EXC_CRASH)',
+        describeCrash(systemParsed),
+      );
+
+      check('empty log parses to null', parseCrashLog('') === null);
+      check('missing log parses to null', parseCrashLog(null) === null);
+      check('describeCrash tolerates null', describeCrash(null) === 'Crash report');
+
+      // Rendered summary
+      check('trap named in the task', crashTask.includes('**Array index is out of range**'));
+      check('trap explained as a language check', crashTask.includes('not memory corruption'));
+      check('app frames listed', crashTask.includes('`TokenTextView.swift:226`'));
+      check('reading start point given', crashTask.includes('Start at `TokenTextView.swift:226`'));
+      check('full log referenced', crashTask.includes(`../crashes/${taskId(crashes[0])}.crash`));
+      check(
+        'system frames stay out of the summary',
+        !crashTask.includes('CFRunLoopRunSpecific'),
+      );
+      check('entry point not shown', !crashTask.includes('$main()'));
+      check(
+        'raw log file holds the whole report',
+        crashPack.files.find((f) => f.path.endsWith('.crash')).text.includes('Binary Images:'),
+      );
+
+      // --- extraction ergonomics ---
+      // A ZIP whose top-level entries are all dotfiles extracts to what looks
+      // like an empty folder, so at least one visible entry has to be there.
+      const topLevel = [...new Set(pack.files.map((f) => f.path.split('/')[0]))];
+      check('export dir is visible', !PRODUCT_EXPORT_DIR.startsWith('.'), PRODUCT_EXPORT_DIR);
+      check(
+        'zip has a visible top-level entry',
+        topLevel.some((entry) => !entry.startsWith('.')),
+        topLevel.join(', '),
+      );
+      check('guide present in zip pack', pack.files.some((f) => f.path === 'HOW-TO-USE.md'));
+      check(
+        'guide mentions the hidden claude folder',
+        pack.files.find((f) => f.path === 'HOW-TO-USE.md').text.includes('Cmd+Shift+.'),
+      );
+
+      const direct = buildTaskPack(items, {
+        includeTesterIdentity: false,
+        presets: ['claude'],
+        appId: '1',
+        exportedAt: '2026-08-21T09:00:00.000Z',
+        includeZipGuide: false,
+      });
+      check(
+        'guide omitted when writing straight to a repo',
+        !direct.files.some((f) => f.path === 'HOW-TO-USE.md'),
+      );
+      check(
+        'no file lands in the repository root except .claude',
+        direct.files.every(
+          (f) => f.path.startsWith(`${PRODUCT_EXPORT_DIR}/`) || f.path.startsWith('.claude/'),
+        ),
+        direct.files.map((f) => f.path).filter((p) => !p.includes('/')).join(', '),
+      );
+
+      // --- zip ---
+      const zipEntries = [
+        ...pack.files.map((f) => ({ path: f.path, data: textToBytes(f.text) })),
+        { path: 'testflight/screenshots/TF-ANdxloTdD3.jpg', data: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]) },
+      ];
+      const blob = createZip(zipEntries, new Date('2026-08-21T09:00:00Z'));
+      check('zip is a blob with content', blob.size > 1000, `${blob.size} bytes`);
+
+      const zipBytes = new Uint8Array(await blob.arrayBuffer());
+      check('zip magic bytes', zipBytes[0] === 0x50 && zipBytes[1] === 0x4b, '');
+
+      let binary = '';
+      for (const byte of zipBytes) binary += String.fromCharCode(byte);
+      window.__zipBase64 = btoa(binary);
+      window.__results = checks;
+
+      // --- render ---
+      const failed = checks.filter((c) => !c.ok);
+      document.getElementById('results').innerHTML =
+        `<h2>${checks.length - failed.length}/${checks.length} passed</h2>` +
+        checks
+          .map(
+            (c) =>
+              `<div class="${c.ok ? 'pass' : 'fail'}">${c.ok ? '✓' : '✗'} ${c.name}${
+                c.detail && !c.ok ? ` → ${c.detail}` : ''
+              }</div>`,
+          )
+          .join('') +
+        `<h2>Sample task file</h2><pre>${taskBody.replace(/</g, '&lt;')}</pre>` +
+        `<h2>TASKS.md</h2><pre>${pack.files
+          .find((f) => f.path === 'testflight/TASKS.md')
+          .text.replace(/</g, '&lt;')}</pre>`;
+
+      window.__done = true;
+    </script>
+  </body>
+</html>

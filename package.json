@@ -1,0 +1,25 @@
+{
+  "name": "hangar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn TestFlight feedback into agent-ready tasks. A zero-dependency MV3 Chrome extension.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 tools/test-server.py 8765",
+    "test": "python3 tools/test-server.py 8765",
+    "icons": "python3 tools/make-icons.py",
+    "package": "bash tools/package.sh"
+  },
+  "engines": {
+    "pnpm": ">=9"
+  },
+  "keywords": [
+    "chrome-extension",
+    "testflight",
+    "app-store-connect",
+    "ios",
+    "claude-code",
+    "coding-agent"
+  ]
+}

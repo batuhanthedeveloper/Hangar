@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hangar</title>
+    <script>
+      // Stub the extension APIs the panel depends on, before its module runs.
+      // Screenshot URLs are rewritten to local placeholders so the layout can
+      // be judged at realistic proportions.
+      (() => {
+        const store = {};
+        let fixture = null;
+
+        window.__setFixture = (data) => { fixture = data; };
+
+        window.chrome = {
+          tabs: {
+            async query() {
+              const section = new URLSearchParams(location.search).get('kind') === 'crash'
+                ? 'crashes'
+                : 'screenshots';
+              return [{
+                id: 1,
+                url: `https://appstoreconnect.apple.com/teams/00000000-1111-2222-3333-444444444444/apps/1234567890/testflight/${section}`,
+              }];
+            },
+            async sendMessage(_id, message) {
+              if (message.url.includes('/preReleaseVersion')) {
+                return { ok: true, data: { data: { type: 'preReleaseVersions', id: 'pre-1', attributes: { version: '1.0' } } } };
+              }
+              if (message.url.endsWith('/crashLog')) {
+                return { ok: true, data: { data: { attributes: { crashLog: window.__crashLog } } } };
+              }
+              return { ok: true, data: fixture };
+            },
+          },
+          storage: {
+            local: {
+              async get(key) { return key in store ? { [key]: store[key] } : {}; },
+              async set(patch) { Object.assign(store, patch); },
+            },
+          },
+          runtime: { id: 'preview', onMessage: { addListener() {} } },
+        };
+      })();
+    </script>
+  </head>
+  <body>
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+
+      if (params.get('dark')) {
+        document.documentElement.style.colorScheme = 'dark';
+      }
+
+      const isCrash = params.get('kind') === 'crash';
+      // ?demo=1 loads invented feedback instead of the test fixtures: what the
+      // README and the store listing show must never be anyone's real data.
+      const isDemo = params.get('demo') === '1';
+
+      // The same captured report the harness parses, so the panel shows what a
+      // real crash actually produces.
+      window.__crashLog = isCrash
+        ? await (await fetch('./fixtures/crash-log.txt')).text()
+        : '';
+
+      // Load the fixture and point every screenshot at a local placeholder.
+      const fixtureFile = isDemo
+        ? './fixtures/demo.json'
+        : isCrash
+          ? './fixtures/crash-submissions.json'
+          : './fixtures/screenshot-submissions.json';
+
+      const raw = await (await fetch(fixtureFile)).json();
+      const shots = ['./assets/shot-1.png', './assets/shot-2.png', './assets/shot-3.png'];
+
+      raw.data.forEach((entry, index) => {
+        for (const set of entry.attributes.sizedScreenshots || []) {
+          for (const key of Object.keys(set)) {
+            const named = shots.find((path) => path.includes(set[key].url));
+
+            set[key] = {
+              ...set[key],
+              url: named || shots[index % shots.length],
+            };
+          }
+        }
+      });
+
+      // The fixture carries a resolved preReleaseVersion; strip it so the
+      // relationship-following path runs exactly as it does in production.
+      raw.included = raw.included
+        .filter((item) => item.type !== 'preReleaseVersions')
+        .map((item) =>
+          item.type === 'builds'
+            ? { ...item, relationships: { preReleaseVersion: { links: { related: `https://appstoreconnect.apple.com/iris/v1/builds/${item.id}/preReleaseVersion` } } } }
+            : item,
+        );
+
+      window.__setFixture(raw);
+
+      // Inject the real panel markup, minus its own module tag.
+      const html = await (await fetch('../src/sidepanel/panel.html')).text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+
+      for (const node of doc.body.children) {
+        if (node.tagName !== 'SCRIPT') {
+          document.body.append(document.importNode(node, true));
+        }
+      }
+
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '../src/sidepanel/panel.css';
+      document.head.append(link);
+
+      await new Promise((resolve) => { link.onload = resolve; link.onerror = resolve; });
+      await import('../src/sidepanel/panel.js');
+
+      window.__ready = true;
+    </script>
+  </body>
+</html>
